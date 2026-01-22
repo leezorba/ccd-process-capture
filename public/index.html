@@ -252,6 +252,22 @@
         color: var(--text-primary);
       }
 
+      .chat-info-right {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+
+      .download-chat-link {
+        font-size: 12px;
+        color: var(--church-blue);
+        text-decoration: none;
+      }
+
+      .download-chat-link:hover {
+        text-decoration: underline;
+      }
+
       .message-counter {
         font-size: 12px;
         color: var(--church-gray);
@@ -798,7 +814,12 @@
             <strong id="chatEmployeeName"></strong> &middot;
             <span id="chatDivision"></span>
           </div>
-          <div class="message-counter" id="messageCounter"></div>
+          <div class="chat-info-right">
+            <a href="#" id="downloadChatDuring" class="download-chat-link"
+              >Save chat</a
+            >
+            <span class="message-counter" id="messageCounter"></span>
+          </div>
         </div>
 
         <div class="messages" id="messages"></div>
@@ -918,6 +939,7 @@
       const voiceStatus = document.getElementById("voiceStatus");
       const downloadBtn = document.getElementById("downloadBtn");
       const downloadChatBtn = document.getElementById("downloadChatBtn");
+      const downloadChatDuring = document.getElementById("downloadChatDuring");
       const submitBtn = document.getElementById("submitBtn");
       const newSessionBtn = document.getElementById("newSessionBtn");
       const statusMessage = document.getElementById("statusMessage");
@@ -1389,6 +1411,37 @@
           showStatus("Chat log downloaded!", "success");
         } catch (e) {
           showStatus("Failed to download chat log.", "error");
+        }
+      });
+
+      downloadChatDuring.addEventListener("click", async (e) => {
+        e.preventDefault();
+        if (!sessionId) return;
+
+        try {
+          const res = await fetch("/api/download-chat", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ sessionId }),
+          });
+
+          if (!res.ok) throw new Error("Failed");
+
+          const blob = await res.blob();
+          const filename =
+            res.headers
+              .get("Content-Disposition")
+              ?.split('filename="')[1]
+              ?.replace('"', "") || "chat-log.txt";
+
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = filename;
+          a.click();
+          URL.revokeObjectURL(url);
+        } catch (e) {
+          console.error("Failed to download chat log:", e);
         }
       });
 
