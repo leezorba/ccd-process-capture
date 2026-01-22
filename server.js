@@ -632,16 +632,18 @@ app.post("/api/generate-doc", async (req, res) => {
     );
     const buffer = await Packer.toBuffer(doc);
 
-    // Generate filename
+    // Generate filename with date and time to avoid overwrites
     const divisionSlug = (session.division || "Unknown")
       .replace(/[^a-zA-Z0-9]/g, "-")
       .substring(0, 30);
     const processSlug = (data.processName || "Process")
       .replace(/[^a-zA-Z0-9]/g, "-")
       .substring(0, 40);
-    const timestamp = new Date().toISOString().split("T")[0];
+    const now = new Date();
+    const timestamp = now.toISOString().split("T")[0];
+    const timeStr = now.toTimeString().split(" ")[0].replace(/:/g, ""); // HHMMSS
     const draftPrefix = session.status === "ended_early" ? "DRAFT_" : "";
-    const filename = `${draftPrefix}${divisionSlug}_${processSlug}_${timestamp}.docx`;
+    const filename = `${draftPrefix}${divisionSlug}_${processSlug}_${timestamp}_${timeStr}.docx`;
 
     res.setHeader(
       "Content-Type",
@@ -698,16 +700,18 @@ app.post("/api/submit", async (req, res) => {
     const buffer = await Packer.toBuffer(doc);
     const base64Doc = buffer.toString("base64");
 
-    // Generate filename
+    // Generate filename with date and time to avoid overwrites
     const divisionSlug = (session.division || "Unknown")
       .replace(/[^a-zA-Z0-9]/g, "-")
       .substring(0, 30);
     const processSlug = (data.processName || "Process")
       .replace(/[^a-zA-Z0-9]/g, "-")
       .substring(0, 40);
-    const timestamp = new Date().toISOString().split("T")[0];
+    const now = new Date();
+    const timestamp = now.toISOString().split("T")[0];
+    const timeStr = now.toTimeString().split(" ")[0].replace(/:/g, ""); // HHMMSS
     const draftPrefix = session.status === "ended_early" ? "DRAFT_" : "";
-    const filename = `${draftPrefix}${divisionSlug}_${processSlug}_${timestamp}.docx`;
+    const filename = `${draftPrefix}${divisionSlug}_${processSlug}_${timestamp}_${timeStr}.docx`;
 
     // Send to Power Automate
     const payload = {
