@@ -164,6 +164,28 @@
         color: var(--church-blue);
       }
 
+      .recover-loading {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        color: var(--church-blue);
+      }
+
+      .recover-loading .spinner {
+        width: 14px;
+        height: 14px;
+        border: 2px solid var(--church-blue-light);
+        border-top-color: var(--church-blue);
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+      }
+
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
       .form-group {
         width: 100%;
         max-width: 360px;
@@ -930,13 +952,48 @@
       <div class="modal">
         <h3>End Interview Early?</h3>
         <p>
-          You can still download what we've captured so far. The document will
-          be marked as a draft since the interview wasn't completed.
+          Your chat log will be downloaded automatically so you can continue
+          later if needed. You'll also be able to download the draft document.
         </p>
         <div class="modal-actions">
           <button class="btn btn-secondary" id="cancelEndEarly">Cancel</button>
           <button class="btn btn-warning" id="confirmEndEarly">
-            End & Save Draft
+            Download Chat & End
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Recovery Choice Modal -->
+    <div class="modal-overlay" id="recoveryModal">
+      <div class="modal">
+        <h3>Session Recovered</h3>
+        <p id="recoveryModalText">
+          Recovered messages from your previous session.
+        </p>
+        <p
+          style="
+            font-size: 13px;
+            color: var(--text-secondary);
+            margin-top: -8px;
+          "
+        >
+          What would you like to do?
+        </p>
+        <div class="modal-actions" style="flex-direction: column; gap: 8px">
+          <button
+            class="btn btn-primary"
+            id="continueInterviewBtn"
+            style="width: 100%"
+          >
+            Continue Interview
+          </button>
+          <button
+            class="btn btn-secondary"
+            id="generateDocBtn"
+            style="width: 100%"
+          >
+            Generate Document
           </button>
         </div>
       </div>
@@ -953,6 +1010,7 @@
       };
       let isDraft = false;
       let isSessionActive = false;
+      let recoveredData = null; // Store recovery response for modal choices
 
       // Warn user before leaving during active session
       window.addEventListener("beforeunload", (e) => {
@@ -987,6 +1045,12 @@
       const endEarlyModal = document.getElementById("endEarlyModal");
       const cancelEndEarly = document.getElementById("cancelEndEarly");
       const confirmEndEarly = document.getElementById("confirmEndEarly");
+      const recoveryModal = document.getElementById("recoveryModal");
+      const recoveryModalText = document.getElementById("recoveryModalText");
+      const continueInterviewBtn = document.getElementById(
+        "continueInterviewBtn",
+      );
+      const generateDocBtn = document.getElementById("generateDocBtn");
       const warningBanner = document.getElementById("warningBanner");
       const finalWarningBanner = document.getElementById("finalWarningBanner");
       const warningText = document.getElementById("warningText");
@@ -1218,8 +1282,9 @@
             }
           }
 
-          // Show loading state
-          recoverLink.textContent = "Recovering...";
+          // Show loading state with spinner
+          recoverLink.innerHTML =
+            '<span class="recover-loading"><span class="spinner"></span>Recovering...</span>';
           recoverLink.style.pointerEvents = "none";
 
           const res = await fetch("/api/recover-from-chat", {
@@ -1231,21 +1296,24 @@
           if (!res.ok) throw new Error("Recovery failed");
 
           const data = await res.json();
+
+          // Store recovery data for modal choices
+          recoveredData = data;
           sessionId = data.sessionId;
 
-          // Go directly to complete screen
-          setupScreen.style.display = "none";
-          showCompleteScreen(false);
-          showStatus(
-            `Recovered ${data.messageCount} messages. Ready to download or submit.`,
-            "success",
-          );
+          // Reset link
+          recoverLink.innerHTML = "Recover from saved chat log";
+          recoverLink.style.pointerEvents = "auto";
+
+          // Show recovery choice modal
+          recoveryModalText.textContent = `Recovered ${data.messageCount} messages from your previous session.`;
+          recoveryModal.classList.add("visible");
         } catch (err) {
           console.error("Recovery error:", err);
           alert(
             "Unable to recover from this chat log. Please make sure you're uploading a valid chat log file that was downloaded from this app.",
           );
-          recoverLink.textContent = "Recover from saved chat log";
+          recoverLink.innerHTML = "Recover from saved chat log";
           recoverLink.style.pointerEvents = "auto";
         }
 
@@ -1299,10 +1367,13 @@
         }
       }
 
-      async function sendMessage(text) {
+      async function sendMessage(text, silent = false) {
         if (!text.trim() || !sessionId) return;
 
-        addMessage(text, "user");
+        // If not silent, show user's message bubble
+        if (!silent) {
+          addMessage(text, "user");
+        }
         messageInput.value = "";
         messageInput.style.height = "auto";
 
@@ -1405,8 +1476,121 @@
 
       confirmEndEarly.addEventListener("click", async () => {
         endEarlyModal.classList.remove("visible");
+
+        // Auto-download chat log first (safety net for recovery)
+        try {
+          const res = await fetch("/api/download-chat", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ sessionId }),
+          });
+
+          if (res.ok) {
+            const blob = await res.blob();
+            const filename =
+              res.headers
+                .get("Content-Disposition")
+                ?.split('filename="')[1]
+                ?.replace('"', "") || "chat-log.txt";
+
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = filename;
+            a.click();
+            URL.revokeObjectURL(url);
+          }
+        } catch (e) {
+          console.error("Failed to auto-download chat log:", e);
+          // Continue anyway - don't block the end early flow
+        }
+
         await handleEndEarly();
       });
+
+      // Recovery modal handlers
+      continueInterviewBtn.addEventListener("click", () => {
+        recoveryModal.classList.remove("visible");
+        loadRecoveredSession();
+      });
+
+      generateDocBtn.addEventListener("click", () => {
+        recoveryModal.classList.remove("visible");
+        // Go to complete screen (extraction already done during recovery)
+        setupScreen.style.display = "none";
+        showCompleteScreen(false);
+        showStatus(
+          `Recovered ${recoveredData.messageCount} messages. Ready to download or submit.`,
+          "success",
+        );
+        recoveredData = null;
+      });
+
+      // Load recovered session into chat UI
+      function loadRecoveredSession() {
+        if (!recoveredData) return;
+
+        const data = recoveredData;
+        isSessionActive = true;
+
+        // Store session limits from recovery response
+        if (data.limits) {
+          sessionLimits = data.limits;
+        }
+
+        // Set employee name and division in chat info
+        document.getElementById("chatEmployeeName").textContent =
+          data.employeeName || "Unknown";
+        document.getElementById("chatDivision").textContent =
+          data.division || "Unknown";
+
+        // Show chat screen
+        setupScreen.style.display = "none";
+        chatScreen.classList.add("active");
+        endEarlyBtn.classList.add("visible");
+
+        // Clear any existing messages
+        messages.innerHTML = "";
+
+        // Add system message indicating recovered session
+        addMessage(
+          `[Recovered ${data.messageCount} messages from saved chat log]`,
+          "system",
+        );
+
+        // Load all recovered messages into chat UI
+        data.messages.forEach((msg) => {
+          addMessage(msg.content, msg.role);
+        });
+
+        // Update message counter and warnings
+        const remaining = sessionLimits.maxMessages - data.messageCount;
+        const showWarning =
+          data.messageCount >= sessionLimits.warningAt &&
+          data.messageCount < sessionLimits.finalWarningAt;
+        const showFinalWarning =
+          data.messageCount >= sessionLimits.finalWarningAt;
+
+        updateWarnings(
+          data.messageCount,
+          remaining,
+          showWarning,
+          showFinalWarning,
+          false,
+        );
+
+        // Clean up
+        recoveredData = null;
+
+        // Scroll to bottom
+        messages.scrollTop = messages.scrollHeight;
+
+        // Auto-prompt Gemini to summarize and offer to continue (silent - no user bubble)
+        sendMessage(
+          "[Session recovered from chat log] Please briefly summarize where we left off in documenting this process and what we should cover next. Keep it short.",
+          true,
+        );
+      }
 
       async function handleEndEarly() {
         isDraft = true;

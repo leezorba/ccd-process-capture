@@ -893,14 +893,37 @@ app.post("/api/recover-from-chat", async (req, res) => {
     }
 
     // Create a new session with the recovered messages
+    // Structure matches normal sessions so /api/chat works correctly
     const sessionId = uuidv4();
     sessions.set(sessionId, {
+      id: sessionId,
       employeeName,
       division,
       messages,
-      createdAt: Date.now(),
-      lastActivity: Date.now(),
-      extractedData: null,
+      messageCount: messages.length,
+      processData: {
+        processName: null,
+        purpose: null,
+        successCriteria: null,
+        trigger: null,
+        timeline: null,
+        completion: null,
+        steps: [],
+        roles: {
+          responsible: [],
+          accountable: [],
+          consulted: [],
+          informed: [],
+        },
+        tools: [],
+        painPoints: [],
+        breakdowns: [],
+        trainingGaps: [],
+        improvements: [],
+      },
+      createdAt: new Date().toISOString(),
+      lastActivity: new Date().toISOString(),
+      status: "active",
       isRecovered: true,
     });
 
@@ -979,13 +1002,31 @@ Return ONLY valid JSON, no markdown or explanation.`;
     }
 
     // Store extracted data in session
-    sessions.get(sessionId).extractedData = extractedData;
+    const session = sessions.get(sessionId);
+    session.extractedData = extractedData;
+    session.processData = { ...session.processData, ...extractedData };
+
+    // Return messages for "Continue Interview" option
+    // Normalize roles: 'model' -> 'assistant' for frontend display
+    const normalizedMessages = messages.map((m) => ({
+      role: m.role === "model" ? "assistant" : m.role,
+      content: m.content,
+    }));
 
     res.json({
       success: true,
       sessionId,
       data: extractedData,
       messageCount: messages.length,
+      messages: normalizedMessages,
+      employeeName,
+      division,
+      limits: {
+        maxMessages: SESSION_CONFIG.MAX_MESSAGES,
+        warningAt: SESSION_CONFIG.WARNING_AT,
+        finalWarningAt: SESSION_CONFIG.FINAL_WARNING_AT,
+        timeoutMinutes: SESSION_CONFIG.TIMEOUT_MINUTES,
+      },
     });
   } catch (error) {
     console.error("Recovery error:", error);
@@ -1018,7 +1059,7 @@ function createProcessDocument(data, employeeName, division, isDraft = false) {
           paragraphs.push(
             new Paragraph({
               spacing: { after: 60 },
-              children: [new TextRun({ text: `• ${item}`, size: 22 })],
+              children: [new TextRun({ text: `â€¢ ${item}`, size: 22 })],
             }),
           );
         }
