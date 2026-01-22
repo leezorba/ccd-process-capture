@@ -1,0 +1,1423 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <title>CCD Process Capture</title>
+    <style>
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      :root {
+        --church-blue: #006184;
+        --church-blue-dark: #004d69;
+        --church-blue-light: #e6f3f7;
+        --church-gray: #63666a;
+        --church-gray-light: #f5f5f5;
+        --text-primary: #1a1a1a;
+        --text-secondary: #555;
+        --white: #ffffff;
+        --border: #e0e0e0;
+        --success: #2e7d32;
+        --success-bg: #e8f5e9;
+        --error: #c62828;
+        --error-bg: #ffebee;
+        --warning: #f57c00;
+        --warning-bg: #fff3e0;
+      }
+
+      body {
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          "Helvetica Neue", Arial, sans-serif;
+        background: var(--church-gray-light);
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 10px;
+      }
+
+      .container {
+        width: 100%;
+        max-width: 720px;
+        background: var(--white);
+        border-radius: 8px;
+        box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        height: calc(100vh - 40px);
+        max-height: 1100px;
+        min-height: 700px;
+      }
+
+      .header {
+        background: var(--church-blue);
+        color: var(--white);
+        padding: 14px 20px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex-shrink: 0;
+      }
+
+      .header-icon {
+        width: 36px;
+        height: 36px;
+        min-width: 36px;
+        background: rgba(255, 255, 255, 0.15);
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .header-icon svg {
+        width: 20px;
+        height: 20px;
+      }
+
+      .header-text {
+        min-width: 0;
+        flex: 1;
+      }
+
+      .header-text h1 {
+        font-size: 16px;
+        font-weight: 600;
+        letter-spacing: -0.01em;
+        white-space: nowrap;
+      }
+
+      .header-text p {
+        font-size: 12px;
+        opacity: 0.85;
+        margin-top: 1px;
+        font-weight: 400;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .end-early-btn {
+        background: rgba(255, 255, 255, 0.15);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        color: var(--white);
+        padding: 6px 12px;
+        border-radius: 6px;
+        font-size: 12px;
+        cursor: pointer;
+        transition: all 0.2s;
+        white-space: nowrap;
+        display: none;
+      }
+
+      .end-early-btn:hover {
+        background: rgba(255, 255, 255, 0.25);
+      }
+
+      .end-early-btn.visible {
+        display: block;
+      }
+
+      .setup-screen {
+        flex: 1;
+        padding: 48px 32px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 24px;
+      }
+
+      .setup-screen h2 {
+        font-size: 22px;
+        color: var(--text-primary);
+        font-weight: 600;
+      }
+
+      .setup-screen > p {
+        color: var(--text-secondary);
+        text-align: center;
+        max-width: 380px;
+        line-height: 1.5;
+      }
+
+      .form-group {
+        width: 100%;
+        max-width: 360px;
+      }
+
+      .form-group label {
+        display: block;
+        font-weight: 500;
+        color: var(--text-primary);
+        margin-bottom: 6px;
+        font-size: 14px;
+      }
+
+      .form-group input,
+      .form-group select {
+        width: 100%;
+        padding: 12px 14px;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        font-size: 15px;
+        transition:
+          border-color 0.2s,
+          box-shadow 0.2s;
+        background: var(--white);
+      }
+
+      .form-group input:focus,
+      .form-group select:focus {
+        outline: none;
+        border-color: var(--church-blue);
+        box-shadow: 0 0 0 3px var(--church-blue-light);
+      }
+
+      .btn {
+        padding: 12px 28px;
+        border: none;
+        border-radius: 6px;
+        font-size: 15px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+
+      .btn-primary {
+        background: var(--church-blue);
+        color: var(--white);
+      }
+
+      .btn-primary:hover {
+        background: var(--church-blue-dark);
+      }
+
+      .btn-primary:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+
+      .btn-secondary {
+        background: var(--church-gray-light);
+        color: var(--text-primary);
+        border: 1px solid var(--border);
+      }
+
+      .btn-secondary:hover {
+        background: var(--border);
+      }
+
+      .btn-warning {
+        background: var(--warning);
+        color: var(--white);
+      }
+
+      .btn-warning:hover {
+        background: #e65100;
+      }
+
+      .chat-screen {
+        flex: 1;
+        display: none;
+        flex-direction: column;
+        min-height: 0;
+      }
+
+      .chat-screen.active {
+        display: flex;
+      }
+
+      .chat-info {
+        padding: 10px 20px;
+        background: var(--church-gray-light);
+        border-bottom: 1px solid var(--border);
+        font-size: 13px;
+        color: var(--text-secondary);
+        flex-shrink: 0;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      .chat-info strong {
+        color: var(--text-primary);
+      }
+
+      .message-counter {
+        font-size: 12px;
+        color: var(--church-gray);
+      }
+
+      .message-counter.warning {
+        color: var(--warning);
+        font-weight: 500;
+      }
+
+      .message-counter.critical {
+        color: var(--error);
+        font-weight: 600;
+      }
+
+      /* Warning banners */
+      .warning-banner {
+        padding: 10px 20px;
+        font-size: 13px;
+        display: none;
+        align-items: center;
+        gap: 8px;
+        flex-shrink: 0;
+      }
+
+      .warning-banner.visible {
+        display: flex;
+      }
+
+      .warning-banner.yellow {
+        background: var(--warning-bg);
+        color: var(--warning);
+        border-bottom: 1px solid #ffe0b2;
+      }
+
+      .warning-banner.red {
+        background: var(--error-bg);
+        color: var(--error);
+        border-bottom: 1px solid #ffcdd2;
+      }
+
+      .warning-banner svg {
+        width: 16px;
+        height: 16px;
+        flex-shrink: 0;
+      }
+
+      .messages {
+        flex: 1;
+        overflow-y: auto;
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+        background: var(--white);
+        min-height: 0;
+      }
+
+      .message {
+        max-width: 80%;
+        padding: 12px 16px;
+        border-radius: 12px;
+        line-height: 1.5;
+        font-size: 15px;
+        animation: fadeIn 0.25s ease;
+        white-space: pre-wrap;
+      }
+
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+          transform: translateY(8px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      .message.assistant {
+        background: var(--church-gray-light);
+        color: var(--text-primary);
+        align-self: flex-start;
+        border-bottom-left-radius: 4px;
+      }
+
+      .message.user {
+        background: var(--church-blue);
+        color: var(--white);
+        align-self: flex-end;
+        border-bottom-right-radius: 4px;
+      }
+
+      .message.system {
+        background: var(--success-bg);
+        color: var(--success);
+        align-self: center;
+        font-size: 13px;
+        text-align: center;
+        padding: 8px 16px;
+      }
+
+      .typing-indicator {
+        display: flex;
+        gap: 5px;
+        padding: 12px 16px;
+        background: var(--church-gray-light);
+        border-radius: 12px;
+        align-self: flex-start;
+        border-bottom-left-radius: 4px;
+      }
+
+      .typing-indicator span {
+        width: 8px;
+        height: 8px;
+        background: #999;
+        border-radius: 50%;
+        animation: bounce 1.4s infinite;
+      }
+
+      .typing-indicator span:nth-child(2) {
+        animation-delay: 0.2s;
+      }
+      .typing-indicator span:nth-child(3) {
+        animation-delay: 0.4s;
+      }
+
+      @keyframes bounce {
+        0%,
+        60%,
+        100% {
+          transform: translateY(0);
+        }
+        30% {
+          transform: translateY(-6px);
+        }
+      }
+
+      .input-area {
+        padding: 12px 16px;
+        background: var(--white);
+        border-top: 1px solid var(--border);
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        flex-shrink: 0;
+      }
+
+      .input-wrapper {
+        flex: 1;
+        min-width: 0;
+      }
+
+      #messageInput {
+        width: 100%;
+        height: 40px;
+        padding: 10px 12px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        font-size: 15px;
+        resize: none;
+        max-height: 100px;
+        font-family: inherit;
+        line-height: 1.4;
+      }
+
+      #messageInput:focus {
+        outline: none;
+        border-color: var(--church-blue);
+        box-shadow: 0 0 0 3px var(--church-blue-light);
+      }
+
+      #messageInput:disabled {
+        background: var(--church-gray-light);
+        cursor: not-allowed;
+      }
+
+      .voice-btn,
+      .send-btn {
+        width: 40px;
+        height: 40px;
+        min-width: 40px;
+        border-radius: 8px;
+        border: 1px solid var(--border);
+        background: var(--white);
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s;
+      }
+
+      .voice-btn:hover {
+        background: var(--church-gray-light);
+      }
+
+      .voice-btn.recording {
+        background: var(--error);
+        border-color: var(--error);
+        animation: pulse 1s infinite;
+      }
+
+      .voice-btn.recording svg {
+        fill: var(--white);
+      }
+
+      @keyframes pulse {
+        0%,
+        100% {
+          transform: scale(1);
+        }
+        50% {
+          transform: scale(1.05);
+        }
+      }
+
+      .send-btn {
+        border: none;
+        background: var(--church-blue);
+        color: var(--white);
+      }
+
+      .send-btn:hover {
+        background: var(--church-blue-dark);
+      }
+
+      .send-btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+
+      .complete-screen {
+        flex: 1;
+        display: none;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 48px 32px;
+        gap: 20px;
+        text-align: center;
+      }
+
+      .complete-screen.active {
+        display: flex;
+      }
+
+      .complete-icon {
+        width: 64px;
+        height: 64px;
+        background: var(--success-bg);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .complete-icon.draft {
+        background: var(--warning-bg);
+      }
+
+      .complete-icon svg {
+        width: 32px;
+        height: 32px;
+        fill: var(--success);
+      }
+
+      .complete-icon.draft svg {
+        fill: var(--warning);
+      }
+
+      .complete-screen h2 {
+        font-size: 20px;
+        color: var(--text-primary);
+        font-weight: 600;
+      }
+
+      .complete-screen > p {
+        color: var(--text-secondary);
+        max-width: 380px;
+        line-height: 1.5;
+      }
+
+      .complete-actions {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        justify-content: center;
+        margin-top: 8px;
+      }
+
+      .status-message {
+        font-size: 13px;
+        padding: 8px 14px;
+        border-radius: 6px;
+        margin-top: 8px;
+      }
+
+      .status-message.success {
+        background: var(--success-bg);
+        color: var(--success);
+      }
+      .status-message.error {
+        background: var(--error-bg);
+        color: var(--error);
+      }
+      .status-message.loading {
+        background: var(--church-blue-light);
+        color: var(--church-blue);
+      }
+
+      .voice-status {
+        font-size: 12px;
+        color: var(--text-secondary);
+        text-align: center;
+        padding: 4px;
+        display: none;
+      }
+
+      .voice-status.active {
+        display: block;
+        color: var(--error);
+      }
+
+      .footer {
+        text-align: center;
+        padding: 12px 20px;
+        font-size: 12px;
+        color: var(--church-gray);
+        flex-shrink: 0;
+      }
+
+      .hidden {
+        display: none !important;
+      }
+
+      /* Modal styles */
+      .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.5);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+      }
+
+      .modal-overlay.visible {
+        display: flex;
+      }
+
+      .modal {
+        background: var(--white);
+        border-radius: 12px;
+        padding: 24px;
+        max-width: 400px;
+        width: 90%;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+      }
+
+      .modal h3 {
+        font-size: 18px;
+        margin-bottom: 12px;
+        color: var(--text-primary);
+      }
+
+      .modal p {
+        font-size: 14px;
+        color: var(--text-secondary);
+        margin-bottom: 20px;
+        line-height: 1.5;
+      }
+
+      .modal-actions {
+        display: flex;
+        gap: 10px;
+        justify-content: flex-end;
+      }
+
+      .modal-actions .btn {
+        padding: 10px 20px;
+        font-size: 14px;
+      }
+
+      @media (max-width: 600px) {
+        body {
+          padding: 0;
+          justify-content: flex-start;
+        }
+
+        .container {
+          border-radius: 0;
+          height: 100vh;
+          max-height: none;
+        }
+
+        .header {
+          padding: 12px 16px;
+          gap: 10px;
+        }
+
+        .header-icon {
+          width: 32px;
+          height: 32px;
+          min-width: 32px;
+        }
+
+        .header-icon svg {
+          width: 18px;
+          height: 18px;
+        }
+
+        .header-text h1 {
+          font-size: 15px;
+        }
+
+        .header-text p {
+          font-size: 11px;
+        }
+
+        .end-early-btn {
+          padding: 5px 10px;
+          font-size: 11px;
+        }
+
+        .setup-screen {
+          padding: 32px 20px;
+        }
+
+        .messages {
+          padding: 16px;
+        }
+
+        .input-area {
+          padding: 10px 12px;
+          gap: 6px;
+        }
+
+        #messageInput {
+          height: 38px;
+          padding: 9px 10px;
+          font-size: 16px;
+        }
+
+        .voice-btn,
+        .send-btn {
+          width: 38px;
+          height: 38px;
+          min-width: 38px;
+        }
+
+        .footer {
+          padding: 10px 16px;
+          font-size: 11px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <div class="header-icon">
+          <svg viewBox="0 0 32 32" fill="white">
+            <rect
+              x="4"
+              y="6"
+              width="24"
+              height="24"
+              rx="3"
+              fill="white"
+              opacity="0.2"
+            />
+            <rect x="11" y="2" width="10" height="6" rx="2" fill="white" />
+            <rect x="13" y="4" width="6" height="3" rx="1" fill="#006184" />
+            <rect x="8" y="13" width="12" height="2" rx="1" fill="white" />
+            <rect x="8" y="18" width="16" height="2" rx="1" fill="white" />
+            <rect x="8" y="23" width="10" height="2" rx="1" fill="white" />
+          </svg>
+        </div>
+        <div class="header-text">
+          <h1>CCD Process Capture</h1>
+          <p>Document your workflows through AI-guided conversation</p>
+        </div>
+        <button class="end-early-btn" id="endEarlyBtn">End Early</button>
+      </div>
+
+      <div class="setup-screen" id="setupScreen">
+        <h2>Welcome</h2>
+        <p>
+          Let's document one of your work processes. This conversation typically
+          takes 20-30 minutes. You can end early and save your progress at any
+          time.
+        </p>
+
+        <div class="form-group">
+          <label for="employeeName">Your Name</label>
+          <input
+            type="text"
+            id="employeeName"
+            placeholder="Enter your full name"
+          />
+        </div>
+
+        <div class="form-group">
+          <label for="division">Your Division</label>
+          <select id="division">
+            <option value="">Select your division...</option>
+          </select>
+        </div>
+
+        <div class="form-group hidden" id="otherDivisionGroup">
+          <label for="otherDivision">Please specify</label>
+          <input
+            type="text"
+            id="otherDivision"
+            placeholder="Enter your division or team"
+          />
+        </div>
+
+        <button class="btn btn-primary" id="startBtn" disabled>
+          Start Interview
+        </button>
+      </div>
+
+      <div class="chat-screen" id="chatScreen">
+        <!-- Warning banners -->
+        <div class="warning-banner yellow" id="warningBanner">
+          <svg viewBox="0 0 24 24" fill="currentColor">
+            <path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z" />
+          </svg>
+          <span id="warningText">15 messages remaining in this session</span>
+        </div>
+        <div class="warning-banner red" id="finalWarningBanner">
+          <svg viewBox="0 0 24 24" fill="currentColor">
+            <path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z" />
+          </svg>
+          <span id="finalWarningText">5 messages left - let's wrap up!</span>
+        </div>
+
+        <div class="chat-info">
+          <div>
+            <strong id="chatEmployeeName"></strong> &middot;
+            <span id="chatDivision"></span>
+          </div>
+          <div class="message-counter" id="messageCounter"></div>
+        </div>
+
+        <div class="messages" id="messages"></div>
+
+        <div class="voice-status" id="voiceStatus">Listening...</div>
+
+        <div class="input-area">
+          <div class="input-wrapper">
+            <textarea
+              id="messageInput"
+              rows="1"
+              placeholder="Type or speak..."
+            ></textarea>
+          </div>
+          <button class="voice-btn" id="voiceBtn" title="Click to speak">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="#63666A">
+              <path
+                d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm-1-9c0-.55.45-1 1-1s1 .45 1 1v6c0 .55-.45 1-1 1s-1-.45-1-1V5zm6 6c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"
+              />
+            </svg>
+          </button>
+          <button class="send-btn" id="sendBtn" title="Send message">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="white">
+              <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="complete-screen" id="completeScreen">
+        <div class="complete-icon" id="completeIcon">
+          <svg viewBox="0 0 24 24" fill="currentColor">
+            <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
+          </svg>
+        </div>
+        <h2 id="completeTitle">Interview Complete</h2>
+        <p id="completeSummary">
+          Your process has been documented. You can download the document or
+          submit it to be saved in SharePoint.
+        </p>
+
+        <div class="complete-actions">
+          <button class="btn btn-secondary" id="downloadBtn">
+            Download Document
+          </button>
+          <button class="btn btn-primary" id="submitBtn">
+            Submit to SharePoint
+          </button>
+        </div>
+
+        <div id="statusMessage" class="status-message hidden"></div>
+
+        <button
+          class="btn btn-secondary"
+          id="newSessionBtn"
+          style="margin-top: 16px"
+        >
+          Start New Interview
+        </button>
+      </div>
+
+      <div class="footer">Got questions? Contact Spencer at CCD</div>
+    </div>
+
+    <!-- End Early Confirmation Modal -->
+    <div class="modal-overlay" id="endEarlyModal">
+      <div class="modal">
+        <h3>End Interview Early?</h3>
+        <p>
+          You can still download what we've captured so far. The document will
+          be marked as a draft since the interview wasn't completed.
+        </p>
+        <div class="modal-actions">
+          <button class="btn btn-secondary" id="cancelEndEarly">Cancel</button>
+          <button class="btn btn-warning" id="confirmEndEarly">
+            End & Save Draft
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      let sessionId = null;
+      let isRecording = false;
+      let recognition = null;
+      let sessionLimits = {
+        maxMessages: 75,
+        warningAt: 60,
+        finalWarningAt: 70,
+      };
+      let isDraft = false;
+      let isSessionActive = false;
+
+      // Warn user before leaving during active session
+      window.addEventListener("beforeunload", (e) => {
+        if (isSessionActive) {
+          e.preventDefault();
+          e.returnValue =
+            "You have an interview in progress. Are you sure you want to leave? Your progress will be lost.";
+          return e.returnValue;
+        }
+      });
+
+      const setupScreen = document.getElementById("setupScreen");
+      const chatScreen = document.getElementById("chatScreen");
+      const completeScreen = document.getElementById("completeScreen");
+      const employeeNameInput = document.getElementById("employeeName");
+      const divisionSelect = document.getElementById("division");
+      const startBtn = document.getElementById("startBtn");
+      const messages = document.getElementById("messages");
+      const messageInput = document.getElementById("messageInput");
+      const voiceBtn = document.getElementById("voiceBtn");
+      const sendBtn = document.getElementById("sendBtn");
+      const voiceStatus = document.getElementById("voiceStatus");
+      const downloadBtn = document.getElementById("downloadBtn");
+      const submitBtn = document.getElementById("submitBtn");
+      const newSessionBtn = document.getElementById("newSessionBtn");
+      const statusMessage = document.getElementById("statusMessage");
+      const endEarlyBtn = document.getElementById("endEarlyBtn");
+      const endEarlyModal = document.getElementById("endEarlyModal");
+      const cancelEndEarly = document.getElementById("cancelEndEarly");
+      const confirmEndEarly = document.getElementById("confirmEndEarly");
+      const warningBanner = document.getElementById("warningBanner");
+      const finalWarningBanner = document.getElementById("finalWarningBanner");
+      const warningText = document.getElementById("warningText");
+      const finalWarningText = document.getElementById("finalWarningText");
+      const messageCounter = document.getElementById("messageCounter");
+      const completeIcon = document.getElementById("completeIcon");
+      const completeTitle = document.getElementById("completeTitle");
+      const completeSummary = document.getElementById("completeSummary");
+
+      async function init() {
+        try {
+          const res = await fetch("/api/divisions");
+          const divisions = await res.json();
+          divisions.forEach((div) => {
+            const option = document.createElement("option");
+            option.value = div;
+            option.textContent = div;
+            divisionSelect.appendChild(option);
+          });
+          // Add "Other" option at the end
+          const otherOption = document.createElement("option");
+          otherOption.value = "Other";
+          otherOption.textContent = "Other";
+          divisionSelect.appendChild(otherOption);
+        } catch (e) {
+          console.error("Failed to load divisions:", e);
+        }
+
+        if (
+          "webkitSpeechRecognition" in window ||
+          "SpeechRecognition" in window
+        ) {
+          const SpeechRecognition =
+            window.SpeechRecognition || window.webkitSpeechRecognition;
+          recognition = new SpeechRecognition();
+          recognition.continuous = true;
+          recognition.interimResults = true;
+          recognition.lang = "en-US";
+
+          recognition.onresult = (event) => {
+            let interimTranscript = "";
+            let finalTranscript = "";
+
+            for (let i = event.resultIndex; i < event.results.length; i++) {
+              const transcript = event.results[i][0].transcript;
+              if (event.results[i].isFinal) {
+                finalTranscript += transcript;
+              } else {
+                interimTranscript += transcript;
+              }
+            }
+
+            // Show interim results in placeholder, final in value
+            if (finalTranscript) {
+              messageInput.value += finalTranscript;
+              messageInput.placeholder = "Type or speak...";
+            } else if (interimTranscript) {
+              messageInput.placeholder = interimTranscript + "...";
+            }
+          };
+
+          recognition.onerror = (event) => {
+            console.error("Speech recognition error:", event.error);
+            if (event.error === "no-speech") {
+              // Don't stop, just keep listening
+              console.log("No speech detected, continuing...");
+            } else if (event.error === "audio-capture") {
+              alert("No microphone detected. Please check your mic settings.");
+              stopRecording();
+            } else if (event.error === "not-allowed") {
+              alert(
+                "Microphone access denied. Please allow mic access in browser settings.",
+              );
+              stopRecording();
+            } else {
+              stopRecording();
+            }
+          };
+
+          recognition.onend = () => {
+            if (isRecording) {
+              // Restart if still supposed to be recording
+              try {
+                recognition.start();
+              } catch (e) {
+                console.log("Recognition restart error:", e);
+              }
+            }
+          };
+
+          recognition.onaudiostart = () => {
+            console.log("Audio capturing started");
+          };
+
+          recognition.onspeechstart = () => {
+            console.log("Speech detected");
+          };
+        } else {
+          voiceBtn.style.display = "none";
+        }
+
+        const otherDivisionGroup =
+          document.getElementById("otherDivisionGroup");
+        const otherDivisionInput = document.getElementById("otherDivision");
+
+        const checkForm = () => {
+          const isOther = divisionSelect.value === "Other";
+          const divisionValid = isOther
+            ? otherDivisionInput.value.trim()
+            : divisionSelect.value;
+          startBtn.disabled = !employeeNameInput.value.trim() || !divisionValid;
+        };
+
+        employeeNameInput.addEventListener("input", checkForm);
+        divisionSelect.addEventListener("change", () => {
+          if (divisionSelect.value === "Other") {
+            otherDivisionGroup.classList.remove("hidden");
+            otherDivisionInput.focus();
+          } else {
+            otherDivisionGroup.classList.add("hidden");
+            otherDivisionInput.value = "";
+          }
+          checkForm();
+        });
+        otherDivisionInput.addEventListener("input", checkForm);
+      }
+
+      startBtn.addEventListener("click", async () => {
+        const employeeName = employeeNameInput.value.trim();
+        const otherDivisionInput = document.getElementById("otherDivision");
+        const division =
+          divisionSelect.value === "Other"
+            ? otherDivisionInput.value.trim()
+            : divisionSelect.value;
+
+        try {
+          const res = await fetch("/api/session/start", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ employeeName, division }),
+          });
+          const data = await res.json();
+          sessionId = data.sessionId;
+          isSessionActive = true;
+
+          // Store session limits
+          if (data.limits) {
+            sessionLimits = data.limits;
+          }
+
+          setupScreen.style.display = "none";
+          chatScreen.classList.add("active");
+
+          // Show end early button after starting
+          endEarlyBtn.classList.add("visible");
+
+          document.getElementById("chatEmployeeName").textContent =
+            employeeName;
+          document.getElementById("chatDivision").textContent = division;
+
+          await sendMessage(
+            "Hi, I'm " +
+              employeeName +
+              " from " +
+              division +
+              ". I'm ready to document a process.",
+          );
+        } catch (e) {
+          console.error("Failed to start session:", e);
+          alert("Failed to start session. Please try again.");
+        }
+      });
+
+      function updateWarnings(
+        messageCount,
+        remaining,
+        showWarning,
+        showFinalWarning,
+        forceEnd,
+      ) {
+        // Update message counter
+        if (messageCount > 0) {
+          messageCounter.textContent = `${remaining} messages left`;
+          if (showFinalWarning || forceEnd) {
+            messageCounter.className = "message-counter critical";
+          } else if (showWarning) {
+            messageCounter.className = "message-counter warning";
+          } else {
+            messageCounter.className = "message-counter";
+          }
+        }
+
+        // Update warning banners
+        if (showWarning && !showFinalWarning) {
+          warningText.textContent = `${remaining} messages remaining in this session`;
+          warningBanner.classList.add("visible");
+          finalWarningBanner.classList.remove("visible");
+        } else if (showFinalWarning) {
+          finalWarningText.textContent = `${remaining} messages left - let's wrap up!`;
+          finalWarningBanner.classList.add("visible");
+          warningBanner.classList.remove("visible");
+        } else {
+          warningBanner.classList.remove("visible");
+          finalWarningBanner.classList.remove("visible");
+        }
+
+        // Handle force end (at limit)
+        if (forceEnd) {
+          messageInput.disabled = true;
+          sendBtn.disabled = true;
+          voiceBtn.disabled = true;
+          addMessage(
+            "Session limit reached. Saving your progress...",
+            "system",
+          );
+          setTimeout(() => handleEndEarly(), 1000);
+        }
+      }
+
+      async function sendMessage(text) {
+        if (!text.trim() || !sessionId) return;
+
+        addMessage(text, "user");
+        messageInput.value = "";
+        messageInput.style.height = "auto";
+
+        const typingDiv = document.createElement("div");
+        typingDiv.className = "typing-indicator";
+        typingDiv.innerHTML = "<span></span><span></span><span></span>";
+        messages.appendChild(typingDiv);
+        messages.scrollTop = messages.scrollHeight;
+
+        try {
+          const res = await fetch("/api/chat", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ sessionId, message: text }),
+          });
+          const data = await res.json();
+
+          typingDiv.remove();
+
+          // Update warnings based on response
+          updateWarnings(
+            data.messageCount,
+            data.remaining,
+            data.showWarning,
+            data.showFinalWarning,
+            data.forceEnd,
+          );
+
+          if (!data.forceEnd) {
+            addMessage(data.message, "assistant");
+
+            if (data.isComplete) {
+              setTimeout(() => handleComplete(), 1500);
+            }
+          }
+        } catch (e) {
+          typingDiv.remove();
+          addMessage("Sorry, there was an error. Please try again.", "system");
+        }
+      }
+
+      function addMessage(text, type) {
+        const div = document.createElement("div");
+        div.className = "message " + type;
+        div.textContent = text;
+        messages.appendChild(div);
+        messages.scrollTop = messages.scrollHeight;
+      }
+
+      sendBtn.addEventListener("click", () => sendMessage(messageInput.value));
+
+      messageInput.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" && !e.shiftKey) {
+          e.preventDefault();
+          sendMessage(messageInput.value);
+        }
+      });
+
+      messageInput.addEventListener("input", () => {
+        messageInput.style.height = "auto";
+        messageInput.style.height =
+          Math.min(messageInput.scrollHeight, 100) + "px";
+      });
+
+      voiceBtn.addEventListener("click", () => {
+        if (isRecording) stopRecording();
+        else startRecording();
+      });
+
+      function startRecording() {
+        if (!recognition) return;
+        isRecording = true;
+        voiceBtn.classList.add("recording");
+        voiceStatus.classList.add("active");
+        console.log("Starting speech recognition...");
+        try {
+          recognition.start();
+        } catch (e) {
+          console.error("Failed to start recognition:", e);
+        }
+      }
+
+      function stopRecording() {
+        if (!recognition) return;
+        isRecording = false;
+        voiceBtn.classList.remove("recording");
+        voiceStatus.classList.remove("active");
+        messageInput.placeholder = "Type or speak...";
+        recognition.stop();
+      }
+
+      // End Early functionality
+      endEarlyBtn.addEventListener("click", () => {
+        endEarlyModal.classList.add("visible");
+      });
+
+      cancelEndEarly.addEventListener("click", () => {
+        endEarlyModal.classList.remove("visible");
+      });
+
+      confirmEndEarly.addEventListener("click", async () => {
+        endEarlyModal.classList.remove("visible");
+        await handleEndEarly();
+      });
+
+      async function handleEndEarly() {
+        isDraft = true;
+        addMessage(
+          "Ending interview early. Extracting what we've captured...",
+          "system",
+        );
+
+        try {
+          const res = await fetch("/api/end-early", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ sessionId }),
+          });
+
+          const data = await res.json();
+
+          if (data.success) {
+            showCompleteScreen(true);
+          } else {
+            addMessage(
+              "Failed to save. Please try again or download manually.",
+              "system",
+            );
+          }
+        } catch (e) {
+          console.error("End early error:", e);
+          // Still show complete screen so they can download
+          showCompleteScreen(true);
+        }
+      }
+
+      async function handleComplete() {
+        addMessage(
+          "Extracting structured data from our conversation...",
+          "system",
+        );
+
+        try {
+          await fetch("/api/extract", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ sessionId }),
+          });
+
+          showCompleteScreen(false);
+        } catch (e) {
+          showCompleteScreen(false);
+        }
+      }
+
+      function showCompleteScreen(isDraftDoc) {
+        isSessionActive = false;
+        chatScreen.classList.remove("active");
+        completeScreen.classList.add("active");
+        endEarlyBtn.classList.remove("visible");
+
+        if (isDraftDoc) {
+          completeIcon.classList.add("draft");
+          completeIcon.innerHTML = `<svg viewBox="0 0 24 24" fill="currentColor">
+            <path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/>
+          </svg>`;
+          completeTitle.textContent = "Draft Saved";
+          completeSummary.textContent =
+            "Your partial process documentation has been saved. The document is marked as a draft since the interview wasn't completed.";
+        } else {
+          completeIcon.classList.remove("draft");
+          completeIcon.innerHTML = `<svg viewBox="0 0 24 24" fill="currentColor">
+            <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
+          </svg>`;
+          completeTitle.textContent = "Interview Complete";
+          completeSummary.textContent =
+            "Your process has been documented. You can download the document or submit it to be saved in SharePoint.";
+        }
+      }
+
+      downloadBtn.addEventListener("click", async () => {
+        showStatus("Generating document...", "loading");
+
+        try {
+          const res = await fetch("/api/generate-doc", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ sessionId }),
+          });
+
+          if (!res.ok) throw new Error("Failed");
+
+          const blob = await res.blob();
+          const filename =
+            res.headers
+              .get("Content-Disposition")
+              ?.split('filename="')[1]
+              ?.replace('"', "") || "process-doc.docx";
+
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = filename;
+          a.click();
+          URL.revokeObjectURL(url);
+
+          showStatus("Document downloaded!", "success");
+        } catch (e) {
+          showStatus("Failed to download. Please try again.", "error");
+        }
+      });
+
+      submitBtn.addEventListener("click", async () => {
+        showStatus("Submitting to SharePoint...", "loading");
+
+        try {
+          const res = await fetch("/api/submit", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ sessionId }),
+          });
+
+          const data = await res.json();
+
+          if (data.success) {
+            showStatus("Submitted! File saved as: " + data.filename, "success");
+            submitBtn.disabled = true;
+            submitBtn.textContent = "Submitted";
+          } else {
+            throw new Error(data.error || "Submission failed");
+          }
+        } catch (e) {
+          showStatus(
+            "Failed to submit. You can still download the document.",
+            "error",
+          );
+        }
+      });
+
+      newSessionBtn.addEventListener("click", () => {
+        sessionId = null;
+        isDraft = false;
+        isSessionActive = false;
+        messages.innerHTML = "";
+        employeeNameInput.value = "";
+        divisionSelect.value = "";
+        document.getElementById("otherDivision").value = "";
+        document.getElementById("otherDivisionGroup").classList.add("hidden");
+        startBtn.disabled = true;
+        submitBtn.disabled = false;
+        submitBtn.textContent = "Submit to SharePoint";
+        statusMessage.classList.add("hidden");
+        messageInput.disabled = false;
+        sendBtn.disabled = false;
+        voiceBtn.disabled = false;
+
+        // Reset warnings
+        warningBanner.classList.remove("visible");
+        finalWarningBanner.classList.remove("visible");
+        messageCounter.textContent = "";
+        messageCounter.className = "message-counter";
+
+        completeScreen.classList.remove("active");
+        chatScreen.classList.remove("active");
+        setupScreen.style.display = "flex";
+      });
+
+      function showStatus(text, type) {
+        statusMessage.textContent = text;
+        statusMessage.className = "status-message " + type;
+        statusMessage.classList.remove("hidden");
+      }
+
+      init();
+    </script>
+  </body>
+</html>
