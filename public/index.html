@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <title>CCD Process Capture</title>
+    <title>CCD Process Capture (Beta/PoC)</title>
     <style>
       * {
         box-sizing: border-box;
@@ -734,7 +734,7 @@
           </svg>
         </div>
         <div class="header-text">
-          <h1>CCD Process Capture</h1>
+          <h1>CCD Process Capture (Beta/PoC)</h1>
           <p>Document your workflows through AI-guided conversation</p>
         </div>
         <button class="end-early-btn" id="endEarlyBtn">End Early</button>
@@ -841,6 +841,9 @@
         </p>
 
         <div class="complete-actions">
+          <button class="btn btn-secondary" id="downloadChatBtn">
+            Download Chat Log
+          </button>
           <button class="btn btn-secondary" id="downloadBtn">
             Download Document
           </button>
@@ -914,6 +917,7 @@
       const sendBtn = document.getElementById("sendBtn");
       const voiceStatus = document.getElementById("voiceStatus");
       const downloadBtn = document.getElementById("downloadBtn");
+      const downloadChatBtn = document.getElementById("downloadChatBtn");
       const submitBtn = document.getElementById("submitBtn");
       const newSessionBtn = document.getElementById("newSessionBtn");
       const statusMessage = document.getElementById("statusMessage");
@@ -1353,6 +1357,38 @@
           showStatus("Document downloaded!", "success");
         } catch (e) {
           showStatus("Failed to download. Please try again.", "error");
+        }
+      });
+
+      downloadChatBtn.addEventListener("click", async () => {
+        showStatus("Generating chat log...", "loading");
+
+        try {
+          const res = await fetch("/api/download-chat", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ sessionId }),
+          });
+
+          if (!res.ok) throw new Error("Failed");
+
+          const blob = await res.blob();
+          const filename =
+            res.headers
+              .get("Content-Disposition")
+              ?.split('filename="')[1]
+              ?.replace('"', "") || "chat-log.txt";
+
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = filename;
+          a.click();
+          URL.revokeObjectURL(url);
+
+          showStatus("Chat log downloaded!", "success");
+        } catch (e) {
+          showStatus("Failed to download chat log.", "error");
         }
       });
 

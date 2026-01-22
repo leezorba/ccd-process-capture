@@ -108,6 +108,21 @@ const CCD_DIVISIONS = [
 // System prompt
 const SYSTEM_PROMPT = `You are a Process Documentation Assistant for the Church Communication Department (CCD). Your ONLY purpose is to help CCD employees document their work processes.
 
+# Church Acronym Glossary
+Know these common Church organization acronyms:
+- CCD: Church Communication Department
+- ICS: Information and Communications Services
+- PSD: Publishing Services Department
+- AIWG: AI Working Group
+- PBO: Presiding Bishopric Office
+- WSR: Welfare and Self-Reliance
+- PTH: Priesthood and Family
+- FHD: Family History Department
+- GSD: Global Service Desk
+- OGC: Office of General Counsel
+
+If an employee uses an acronym or term you don't recognize, ask them to clarify: "I'm not familiar with [term] — could you tell me what that stands for?"
+
 # Opening Message
 When someone introduces themselves, respond warmly:
 
@@ -401,11 +416,23 @@ This interview was ended early, so some fields may be incomplete or missing.
 CONVERSATION:
 ${conversationText}
 
+VALID DIVISIONS (use exact match or "Other" if not matching):
+- Management & Administration
+- Media Relations
+- Content Strategy & Coordination
+- Enterprise Social Media
+- Channel Strategy & Management
+- Area Relations
+- Government, Community, and Interfaith Relations
+- Reputation Management & Special Projects
+- Messaging & Strategic Initiatives
+- Controller
+
 Extract the following information as JSON. Use null for any fields not discussed:
 
 {
   "employeeName": "string",
-  "division": "string", 
+  "division": "string - MUST be one of the valid divisions above, or 'Other: [what they said]' if no match",
   "processName": "string - clear action-oriented title, or 'Untitled Process' if not discussed",
   "purpose": "string - why this process exists",
   "successCriteria": "string - what 'done' looks like",
@@ -484,11 +511,23 @@ app.post("/api/extract", async (req, res) => {
 CONVERSATION:
 ${conversationText}
 
+VALID DIVISIONS (use exact match or "Other" if not matching):
+- Management & Administration
+- Media Relations
+- Content Strategy & Coordination
+- Enterprise Social Media
+- Channel Strategy & Management
+- Area Relations
+- Government, Community, and Interfaith Relations
+- Reputation Management & Special Projects
+- Messaging & Strategic Initiatives
+- Controller
+
 Extract the following information as JSON. Use null for any fields not discussed:
 
 {
   "employeeName": "string",
-  "division": "string", 
+  "division": "string - MUST be one of the valid divisions above, or 'Other: [what they said]' if no match", 
   "processName": "string - clear action-oriented title",
   "purpose": "string - why this process exists",
   "successCriteria": "string - what 'done' looks like",
@@ -658,6 +697,38 @@ app.post("/api/submit", async (req, res) => {
 // Get divisions list
 app.get("/api/divisions", (req, res) => {
   res.json(CCD_DIVISIONS);
+});
+
+// Download chat log as text file
+app.post("/api/download-chat", (req, res) => {
+  const { sessionId } = req.body;
+
+  const session = sessions.get(sessionId);
+  if (!session) {
+    return res.status(404).json({ error: "Session not found" });
+  }
+
+  // Format chat log
+  let chatLog = `CCD Process Capture - Chat Log\n`;
+  chatLog += `================================\n`;
+  chatLog += `Employee: ${session.employeeName || "Not provided"}\n`;
+  chatLog += `Division: ${session.division || "Not provided"}\n`;
+  chatLog += `Date: ${new Date().toLocaleString()}\n`;
+  chatLog += `================================\n\n`;
+
+  session.messages.forEach((msg, index) => {
+    const role = msg.role === "user" ? "You" : "Assistant";
+    chatLog += `[${role}]\n${msg.content}\n\n`;
+  });
+
+  chatLog += `================================\n`;
+  chatLog += `Total messages: ${session.messages.length}\n`;
+
+  const filename = `chat-log_${session.employeeName?.replace(/[^a-zA-Z0-9]/g, "-") || "session"}_${new Date().toISOString().split("T")[0]}.txt`;
+
+  res.setHeader("Content-Type", "text/plain");
+  res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+  res.send(chatLog);
 });
 
 // Helper function to create the Word document
