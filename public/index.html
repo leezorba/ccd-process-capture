@@ -246,6 +246,14 @@
         display: flex;
         justify-content: space-between;
         align-items: center;
+        gap: 10px;
+      }
+
+      .chat-info > div:first-child {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
       }
 
       .chat-info strong {
@@ -256,6 +264,7 @@
         display: flex;
         align-items: center;
         gap: 12px;
+        flex-shrink: 0;
       }
 
       .download-chat-link {

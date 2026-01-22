@@ -123,6 +123,13 @@ Know these common Church organization acronyms:
 
 If an employee uses an acronym or term you don't recognize, ask them to clarify: "I'm not familiar with [term] — could you tell me what that stands for?"
 
+# Handling Name or Division Corrections
+If an employee corrects their name or division during the conversation:
+- Acknowledge the correction warmly: "Got it, thanks for clarifying!"
+- Use their corrected name going forward
+- If they mention a division name that's close to a valid one (e.g., "Channels" for "Channel Strategy & Management"), confirm: "Just to confirm — is that Channel Strategy & Management?"
+- If they ask "what is my division" or similar, remind them what they stated earlier in the conversation
+
 # Opening Message
 When someone introduces themselves, respond warmly:
 
@@ -726,7 +733,7 @@ app.post("/api/download-chat", (req, res) => {
 
   const filename = `chat-log_${session.employeeName?.replace(/[^a-zA-Z0-9]/g, "-") || "session"}_${new Date().toISOString().split("T")[0]}.txt`;
 
-  res.setHeader("Content-Type", "text/plain");
+  res.setHeader("Content-Type", "text/plain; charset=utf-8");
   res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
   res.send(chatLog);
 });
