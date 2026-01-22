@@ -130,12 +130,19 @@ If an employee corrects their name or division during the conversation:
 - If they mention a division name that's close to a valid one (e.g., "Channels" for "Channel Strategy & Management"), confirm: "Just to confirm — is that Channel Strategy & Management?"
 - If they ask "what is my division" or similar, remind them what they stated earlier in the conversation
 
+# Session Limits Awareness
+- Sessions have a 100-message limit (50 exchanges)
+- At 80 messages, you'll receive a warning flag - start guiding toward completion
+- At 90 messages, actively wrap up - summarize what you have and move to closing
+- If the user seems to have more to document, suggest they "Save chat" and use recovery to continue later
+- Prioritize capturing the most critical steps and information first
+
 # Opening Message
 When someone introduces themselves, respond warmly:
 
 "Welcome to CCD Process Capture! I'm here to help document your work so others can learn from your expertise — and so we can work better as a team.
 
-This interview typically takes 20-30 minutes. Your session will expire after 90 minutes of inactivity, but you can save your progress at any time using the End Early button if needed.
+This interview typically takes 20-30 minutes. Your session will expire after 90 minutes of inactivity, but you can save your progress at any time using the End Early button if needed. You can also use 'Save chat' to download a backup of our conversation.
 
 We can approach this two ways:
 
@@ -277,7 +284,9 @@ app.get("/api/session/status/:sessionId", (req, res) => {
   const session = sessions.get(sessionId);
 
   if (!session) {
-    return res.status(404).json({ error: "Session not found or expired" });
+    return res.status(404).json({
+      error: "Your session has expired. Please start a new interview.",
+    });
   }
 
   const messageCount = session.messageCount || 0;
@@ -303,7 +312,9 @@ app.post("/api/chat", async (req, res) => {
 
   const session = sessions.get(sessionId);
   if (!session) {
-    return res.status(404).json({ error: "Session not found or expired" });
+    return res.status(404).json({
+      error: "Your session has expired. Please start a new interview.",
+    });
   }
 
   // Update last activity
@@ -313,7 +324,7 @@ app.post("/api/chat", async (req, res) => {
   if (session.messageCount >= SESSION_CONFIG.MAX_MESSAGES) {
     return res.json({
       message:
-        "We've reached the session limit. Let me help you wrap up and save what we've captured so far.",
+        "We've reached the session limit. Don't worry - I'll save what we've captured as a draft. If you need to add more, use 'Save chat' and then 'Recover from saved chat log' to continue later.",
       isComplete: false,
       forceEnd: true,
       sessionId,
@@ -341,8 +352,10 @@ app.post("/api/chat", async (req, res) => {
 
     // Add message limit context if approaching limit
     const remaining = SESSION_CONFIG.MAX_MESSAGES - session.messageCount;
-    if (remaining <= 5 && remaining > 0) {
-      systemPrompt += `\n\n[IMPORTANT: Only ${remaining} messages remaining in this session. Start wrapping up the interview and move toward completion.]`;
+    if (remaining <= 10 && remaining > 0) {
+      systemPrompt += `\n\n[URGENT: Only ${remaining} messages remaining! Wrap up immediately - summarize what you have and move to closing. Suggest user "Save chat" if more documentation is needed.]`;
+    } else if (remaining <= 20) {
+      systemPrompt += `\n\n[WARNING: ${remaining} messages remaining. Start guiding toward completion. Prioritize the most important steps.]`;
     }
 
     const chat = model.startChat({
@@ -400,7 +413,9 @@ app.post("/api/end-early", async (req, res) => {
 
   const session = sessions.get(sessionId);
   if (!session) {
-    return res.status(404).json({ error: "Session not found" });
+    return res.status(404).json({
+      error: "Your session has expired. Please start a new interview.",
+    });
   }
 
   // Mark as ended early
@@ -506,7 +521,9 @@ app.post("/api/extract", async (req, res) => {
 
   const session = sessions.get(sessionId);
   if (!session) {
-    return res.status(404).json({ error: "Session not found" });
+    return res.status(404).json({
+      error: "Your session has expired. Please start a new interview.",
+    });
   }
 
   const conversationText = session.messages
@@ -591,7 +608,9 @@ app.post("/api/generate-doc", async (req, res) => {
 
   const session = sessions.get(sessionId);
   if (!session) {
-    return res.status(404).json({ error: "Session not found" });
+    return res.status(404).json({
+      error: "Your session has expired. Please start a new interview.",
+    });
   }
 
   const data = session.processData;
@@ -636,15 +655,18 @@ app.post("/api/submit", async (req, res) => {
 
   const session = sessions.get(sessionId);
   if (!session) {
-    return res.status(404).json({ error: "Session not found" });
+    return res.status(404).json({
+      error: "Your session has expired. Please start a new interview.",
+    });
   }
 
   const powerAutomateUrl = process.env.POWER_AUTOMATE_WEBHOOK_URL;
 
   if (!powerAutomateUrl) {
-    return res
-      .status(500)
-      .json({ error: "Power Automate webhook URL not configured" });
+    return res.status(500).json({
+      error:
+        "SharePoint submission is not set up. Please download the document instead.",
+    });
   }
 
   try {
@@ -712,7 +734,9 @@ app.post("/api/download-chat", (req, res) => {
 
   const session = sessions.get(sessionId);
   if (!session) {
-    return res.status(404).json({ error: "Session not found" });
+    return res.status(404).json({
+      error: "Your session has expired. Please start a new interview.",
+    });
   }
 
   // Format chat log
@@ -736,6 +760,208 @@ app.post("/api/download-chat", (req, res) => {
   res.setHeader("Content-Type", "text/plain; charset=utf-8");
   res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
   res.send(chatLog);
+});
+
+// Recover session from chat log
+app.post("/api/recover-from-chat", async (req, res) => {
+  const { chatLog } = req.body;
+
+  if (!chatLog) {
+    return res.status(400).json({ error: "No chat log provided" });
+  }
+
+  // Validate chat log format
+  if (!chatLog.includes("CCD Process Capture - Chat Log")) {
+    return res.status(400).json({
+      error:
+        "Invalid chat log format. Please upload a file downloaded from this app.",
+    });
+  }
+
+  // Check size (roughly 1M characters max)
+  if (chatLog.length > 1000000) {
+    return res.status(400).json({ error: "Chat log is too large to process." });
+  }
+
+  try {
+    // Parse the chat log
+    const lines = chatLog.split("\n");
+
+    // Extract employee and division from header
+    let employeeName = "Unknown";
+    let division = "Unknown";
+
+    for (const line of lines) {
+      if (line.startsWith("Employee: ")) {
+        employeeName = line.replace("Employee: ", "").trim();
+      }
+      if (line.startsWith("Division: ")) {
+        division = line.replace("Division: ", "").trim();
+      }
+    }
+
+    // Parse messages
+    const messages = [];
+    let currentRole = null;
+    let currentContent = [];
+
+    for (const line of lines) {
+      if (line === "[You]") {
+        if (currentRole && currentContent.length > 0) {
+          messages.push({
+            role: currentRole,
+            content: currentContent.join("\n").trim(),
+          });
+        }
+        currentRole = "user";
+        currentContent = [];
+      } else if (line === "[Assistant]") {
+        if (currentRole && currentContent.length > 0) {
+          messages.push({
+            role: currentRole,
+            content: currentContent.join("\n").trim(),
+          });
+        }
+        currentRole = "model";
+        currentContent = [];
+      } else if (
+        line.startsWith("================================") ||
+        line.startsWith("Total messages:") ||
+        line.startsWith("CCD Process Capture")
+      ) {
+        // Skip header/footer lines
+        if (currentRole && currentContent.length > 0) {
+          messages.push({
+            role: currentRole,
+            content: currentContent.join("\n").trim(),
+          });
+          currentRole = null;
+          currentContent = [];
+        }
+      } else if (currentRole) {
+        currentContent.push(line);
+      }
+    }
+
+    // Don't forget the last message
+    if (currentRole && currentContent.length > 0) {
+      messages.push({
+        role: currentRole,
+        content: currentContent.join("\n").trim(),
+      });
+    }
+
+    // Create a new session with the recovered messages
+    const sessionId = uuidv4();
+    sessions.set(sessionId, {
+      employeeName,
+      division,
+      messages,
+      createdAt: Date.now(),
+      lastActivity: Date.now(),
+      extractedData: null,
+      isRecovered: true,
+    });
+
+    // Now extract data from the recovered conversation
+    const conversationText = messages
+      .map(
+        (m) => `${m.role === "user" ? "Employee" : "Assistant"}: ${m.content}`,
+      )
+      .join("\n\n");
+
+    const extractionPrompt = `Analyze this process documentation interview and extract structured data.
+
+CONVERSATION:
+${conversationText}
+
+VALID DIVISIONS (use exact match or "Other" if not matching):
+- Management & Administration
+- Media Relations
+- Content Strategy & Coordination
+- Enterprise Social Media
+- Channel Strategy & Management
+- Area Relations
+- Government, Community, and Interfaith Relations
+- Reputation Management & Special Projects
+- Messaging & Strategic Initiatives
+- Controller
+
+Extract the following information as JSON. Use null for any fields not discussed:
+
+{
+  "employeeName": "string",
+  "division": "string - MUST be one of the valid divisions above, or 'Other: [what they said]' if no match", 
+  "processName": "string - clear action-oriented title",
+  "purpose": "string - why this process exists",
+  "scope": "string - boundaries and limitations",
+  "owner": "string - who maintains this process",
+  "frequency": "string - how often it runs",
+  "estimatedTime": "string - how long it takes",
+  "prerequisites": ["array of requirements"],
+  "steps": [
+    {
+      "stepNumber": 1,
+      "title": "string",
+      "description": "string",
+      "tools": ["array of tools used"],
+      "tips": "string - optional"
+    }
+  ],
+  "handoffs": ["array of handoff points to other teams"],
+  "outputs": ["array of deliverables"],
+  "tools": ["array of all tools/systems used"],
+  "metrics": ["array of success metrics"],
+  "commonIssues": [
+    {
+      "issue": "string",
+      "solution": "string"
+    }
+  ],
+  "relatedProcesses": ["array of related process names"],
+  "documentationLinks": ["array of relevant links"],
+  "summary": "2-3 sentence executive summary"
+}
+
+Return ONLY valid JSON, no markdown or explanation.`;
+
+    const extractionResult = await model.generateContent(extractionPrompt);
+    const extractionText = extractionResult.response.text();
+
+    let extractedData;
+    try {
+      const jsonMatch = extractionText.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        extractedData = JSON.parse(jsonMatch[0]);
+      } else {
+        throw new Error("No JSON found in response");
+      }
+    } catch (parseError) {
+      console.error("Extraction parse error:", parseError);
+      extractedData = {
+        employeeName,
+        division,
+        processName: "Recovered Process",
+        summary: "Recovered from chat log",
+      };
+    }
+
+    // Store extracted data in session
+    sessions.get(sessionId).extractedData = extractedData;
+
+    res.json({
+      success: true,
+      sessionId,
+      data: extractedData,
+      messageCount: messages.length,
+    });
+  } catch (error) {
+    console.error("Recovery error:", error);
+    res.status(500).json({
+      error:
+        "Unable to recover from this chat log. The file may be corrupted or incomplete.",
+    });
+  }
 });
 
 // Helper function to create the Word document
