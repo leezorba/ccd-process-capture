@@ -59,9 +59,9 @@ app.use(express.static("public"));
 // SESSION CONFIGURATION
 // ============================================
 const SESSION_CONFIG = {
-  MAX_MESSAGES: 75, // Hard limit
-  WARNING_AT: 60, // First warning
-  FINAL_WARNING_AT: 70, // "5 left, wrap up"
+  MAX_MESSAGES: 100, // Hard limit
+  WARNING_AT: 80, // First warning
+  FINAL_WARNING_AT: 90, // "10 left, wrap up"
   TIMEOUT_MINUTES: 90, // Session expires after 90 min of inactivity
 };
 
