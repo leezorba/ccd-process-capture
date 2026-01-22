@@ -635,15 +635,24 @@ app.post("/api/generate-doc", async (req, res) => {
     // Generate filename with date and time to avoid overwrites
     const divisionSlug = (session.division || "Unknown")
       .replace(/[^a-zA-Z0-9]/g, "-")
+      .replace(/-+/g, "-")
+      .replace(/^-|-$/g, "")
       .substring(0, 30);
+    const employeeSlug = (session.employeeName || "Unknown")
+      .replace(/[^a-zA-Z0-9]/g, "-")
+      .replace(/-+/g, "-")
+      .replace(/^-|-$/g, "")
+      .substring(0, 20);
     const processSlug = (data.processName || "Process")
       .replace(/[^a-zA-Z0-9]/g, "-")
+      .replace(/-+/g, "-")
+      .replace(/^-|-$/g, "")
       .substring(0, 40);
     const now = new Date();
     const timestamp = now.toISOString().split("T")[0];
     const timeStr = now.toTimeString().split(" ")[0].replace(/:/g, ""); // HHMMSS
     const draftPrefix = session.status === "ended_early" ? "DRAFT_" : "";
-    const filename = `${draftPrefix}${divisionSlug}_${processSlug}_${timestamp}_${timeStr}.docx`;
+    const filename = `${draftPrefix}${employeeSlug}_${divisionSlug}_${processSlug}_${timestamp}_${timeStr}.docx`;
 
     res.setHeader(
       "Content-Type",
@@ -703,15 +712,24 @@ app.post("/api/submit", async (req, res) => {
     // Generate filename with date and time to avoid overwrites
     const divisionSlug = (session.division || "Unknown")
       .replace(/[^a-zA-Z0-9]/g, "-")
+      .replace(/-+/g, "-")
+      .replace(/^-|-$/g, "")
       .substring(0, 30);
+    const employeeSlug = (session.employeeName || "Unknown")
+      .replace(/[^a-zA-Z0-9]/g, "-")
+      .replace(/-+/g, "-")
+      .replace(/^-|-$/g, "")
+      .substring(0, 20);
     const processSlug = (data.processName || "Process")
       .replace(/[^a-zA-Z0-9]/g, "-")
+      .replace(/-+/g, "-")
+      .replace(/^-|-$/g, "")
       .substring(0, 40);
     const now = new Date();
     const timestamp = now.toISOString().split("T")[0];
     const timeStr = now.toTimeString().split(" ")[0].replace(/:/g, ""); // HHMMSS
     const draftPrefix = session.status === "ended_early" ? "DRAFT_" : "";
-    const filename = `${draftPrefix}${divisionSlug}_${processSlug}_${timestamp}_${timeStr}.docx`;
+    const filename = `${draftPrefix}${employeeSlug}_${divisionSlug}_${processSlug}_${timestamp}_${timeStr}.docx`;
 
     // Send to Power Automate
     const payload = {
