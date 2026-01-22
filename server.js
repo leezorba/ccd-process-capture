@@ -613,7 +613,14 @@ app.post("/api/generate-doc", async (req, res) => {
     });
   }
 
-  const data = session.processData;
+  // Get data - check both processData and extractedData (for recovered sessions)
+  const data = session.processData || session.extractedData || {};
+
+  if (!data || Object.keys(data).length === 0) {
+    return res.status(400).json({
+      error: "No process data found. Please complete the interview first.",
+    });
+  }
 
   try {
     const doc = createProcessDocument(
@@ -670,9 +677,19 @@ app.post("/api/submit", async (req, res) => {
   }
 
   try {
+    // Get data - check both processData and extractedData (for recovered sessions)
+    const data = session.processData || session.extractedData || {};
+
+    if (!data || Object.keys(data).length === 0) {
+      return res.status(400).json({
+        error:
+          "No process data found. Please complete the interview or use 'Download Document' first.",
+      });
+    }
+
     // Generate the document
     const doc = createProcessDocument(
-      session.processData,
+      data,
       session.employeeName,
       session.division,
       session.status === "ended_early",
@@ -684,7 +701,7 @@ app.post("/api/submit", async (req, res) => {
     const divisionSlug = (session.division || "Unknown")
       .replace(/[^a-zA-Z0-9]/g, "-")
       .substring(0, 30);
-    const processSlug = (session.processData.processName || "Process")
+    const processSlug = (data.processName || "Process")
       .replace(/[^a-zA-Z0-9]/g, "-")
       .substring(0, 40);
     const timestamp = new Date().toISOString().split("T")[0];
@@ -696,8 +713,8 @@ app.post("/api/submit", async (req, res) => {
       sessionId: session.id,
       employeeName: session.employeeName,
       division: session.division,
-      processName: session.processData.processName,
-      summary: session.processData.summary,
+      processName: data.processName,
+      summary: data.summary,
       filename: filename,
       documentBase64: base64Doc,
       submittedAt: new Date().toISOString(),
