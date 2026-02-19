@@ -679,6 +679,13 @@ app.post("/api/submit", async (req, res) => {
     });
   }
 
+  // Prevent duplicate submissions
+  if (session.status === "submitted" || session.status === "submitting") {
+    return res.status(409).json({
+      error: "This session has already been submitted.",
+    });
+  }
+
   const powerAutomateUrl = process.env.POWER_AUTOMATE_WEBHOOK_URL;
 
   if (!powerAutomateUrl) {
@@ -689,6 +696,11 @@ app.post("/api/submit", async (req, res) => {
   }
 
   try {
+    // Save draft flag before changing status
+    const wasDraft = session.status === "ended_early";
+    // Mark as submitting immediately to prevent duplicate requests
+    session.status = "submitting";
+
     // Get data - check both processData and extractedData (for recovered sessions)
     const data = session.processData || session.extractedData || {};
 
@@ -704,7 +716,7 @@ app.post("/api/submit", async (req, res) => {
       data,
       session.employeeName,
       session.division,
-      session.status === "ended_early",
+      wasDraft,
     );
     const buffer = await Packer.toBuffer(doc);
     const base64Doc = buffer.toString("base64");
@@ -728,7 +740,7 @@ app.post("/api/submit", async (req, res) => {
     const now = new Date();
     const timestamp = now.toISOString().split("T")[0];
     const timeStr = now.toTimeString().split(" ")[0].replace(/:/g, ""); // HHMMSS
-    const draftPrefix = session.status === "ended_early" ? "DRAFT_" : "";
+    const draftPrefix = wasDraft ? "DRAFT_" : "";
     const filename = `${draftPrefix}${employeeSlug}_${divisionSlug}_${processSlug}_${timestamp}_${timeStr}.docx`;
 
     // Send to Power Automate
@@ -742,7 +754,7 @@ app.post("/api/submit", async (req, res) => {
       filename: filename,
       documentBase64: base64Doc,
       submittedAt: new Date().toISOString(),
-      isDraft: session.status === "ended_early",
+      isDraft: wasDraft,
     };
 
     const response = await fetch(powerAutomateUrl, {
@@ -760,6 +772,10 @@ app.post("/api/submit", async (req, res) => {
     res.json({ success: true, filename });
   } catch (error) {
     console.error("Submit error:", error);
+    // Reset status so user can retry on genuine failure
+    if (session.status === "submitting") {
+      session.status = "complete";
+    }
     res.status(500).json({ error: "Failed to submit", details: error.message });
   }
 });
@@ -1059,7 +1075,7 @@ function createProcessDocument(data, employeeName, division, isDraft = false) {
           paragraphs.push(
             new Paragraph({
               spacing: { after: 60 },
-              children: [new TextRun({ text: `â€¢ ${item}`, size: 22 })],
+              children: [new TextRun({ text: `\u2022 ${item}`, size: 22 })],
             }),
           );
         }

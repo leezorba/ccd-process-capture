@@ -1766,6 +1766,9 @@
       });
 
       submitBtn.addEventListener("click", async () => {
+        // Disable immediately to prevent double-click
+        submitBtn.disabled = true;
+        submitBtn.textContent = "Submitting...";
         showStatus("Submitting to SharePoint...", "loading");
 
         try {
@@ -1779,7 +1782,6 @@
 
           if (data.success) {
             showStatus("Submitted! File saved as: " + data.filename, "success");
-            submitBtn.disabled = true;
             submitBtn.textContent = "Submitted";
           } else {
             throw new Error(data.error || "Submission failed");
@@ -1789,6 +1791,9 @@
             "Unable to submit to SharePoint. You can still download the document and upload it manually.",
             "error",
           );
+          // Re-enable only on failure so they can retry
+          submitBtn.disabled = false;
+          submitBtn.textContent = "Submit to SharePoint";
         }
       });
 
