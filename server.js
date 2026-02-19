@@ -741,7 +741,27 @@ app.post("/api/submit", async (req, res) => {
     const timestamp = now.toISOString().split("T")[0];
     const timeStr = now.toTimeString().split(" ")[0].replace(/:/g, ""); // HHMMSS
     const draftPrefix = wasDraft ? "DRAFT_" : "";
-    const filename = `${draftPrefix}${employeeSlug}_${divisionSlug}_${processSlug}_${timestamp}_${timeStr}.docx`;
+    const baseFilename = `${draftPrefix}${employeeSlug}_${divisionSlug}_${processSlug}_${timestamp}_${timeStr}`;
+    const filename = `${baseFilename}.docx`;
+    const chatLogFilename = `${baseFilename}.txt`;
+
+    // Generate chat log text (same format as download-chat)
+    let chatLog = `CCD Process Capture - Chat Log\n`;
+    chatLog += `================================\n`;
+    chatLog += `Employee: ${session.employeeName || "Not provided"}\n`;
+    chatLog += `Division: ${session.division || "Not provided"}\n`;
+    chatLog += `Date: ${now.toLocaleString()}\n`;
+    chatLog += `================================\n\n`;
+
+    session.messages.forEach((msg) => {
+      const role = msg.role === "user" ? "You" : "Assistant";
+      chatLog += `[${role}]\n${msg.content}\n\n`;
+    });
+
+    chatLog += `================================\n`;
+    chatLog += `Total messages: ${session.messages.length}\n`;
+
+    const chatLogBase64 = Buffer.from(chatLog, "utf-8").toString("base64");
 
     // Send to Power Automate
     const payload = {
@@ -753,6 +773,8 @@ app.post("/api/submit", async (req, res) => {
       summary: data.summary,
       filename: filename,
       documentBase64: base64Doc,
+      chatLogFilename: chatLogFilename,
+      chatLogBase64: chatLogBase64,
       submittedAt: new Date().toISOString(),
       isDraft: wasDraft,
     };
