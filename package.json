@@ -11,7 +11,7 @@
     "@google/generative-ai": "^0.21.0",
     "cors": "^2.8.5",
     "docx": "^8.5.0",
-    "dotenv": "^16.4.5",
+    "dotenv": "^17.4.2",
     "express": "^4.21.0",
     "uuid": "^10.0.0"
   },
